@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+    <title>Telegram Login</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="phone">
+    <div class="header">
+        TELEGRAM LOGIN
+    </div>
+    <form action="/telegram/auth/phone" method="post">
+        <div>
+            <label for="phone">Phone number:</label>
+        </div>
+        <div>
+            <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    placeholder="+905..."
+                    required>
+        </div>
+        <div>
+            <button type="submit">
+                CONTINUE
+            </button>
+        </div>
+    </form>
+
+    <hr>
+    <form action="/telegram/auth/code" method="post">
+        <div>
+            <label for="code">Telegram code:</label>
+        </div>
+        <div>
+            <input type="text"
+                   id="code"
+                   name="code"
+                   inputmode="numeric"
+                   maxlength="5"
+                   required>
+        </div>
+        <div>
+            <button type="submit">
+                LOGIN
+            </button>
+        </div>
+    </form>
+
+    <div class="footer">
+        <a href="/">BACK</a>
+    </div>
+</div>
+</body>
+</html>
