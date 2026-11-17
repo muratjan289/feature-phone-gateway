@@ -9,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.drinkless.tdlib.TdApi;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
@@ -43,19 +45,28 @@ public class TelegramChatSyncService {
                 gatewayUserId, me.id
         );
 
-        int mainCount = syncChatList(
+        Set<Long> mainChatIds = syncChatList(
                 account.getId(),
                 new TdApi.ChatListMain(),
                 false
         );
-            int archivedCount = syncChatList(
+            Set<Long> archivedChatIds = syncChatList(
                     account.getId(),
                     new TdApi.ChatListArchive(),
                     true
             );
 
+            Set<Long> actualChatIds = new HashSet<>(mainChatIds);
+            actualChatIds.addAll(archivedChatIds);
+
+            int deactivatedChatCount = telegramChatService.deactivateMissingChats(
+                    account.getId(), actualChatIds
+            );
+
+            log.info(" Telegram chat synchronization completed : deactivated={}", deactivatedChatCount);
+
             log.info("Telegram synchronization completed: main={}, archive={}, total={}",
-                    mainCount, archivedCount, mainCount + archivedCount);
+                    mainChatIds.size(), archivedChatIds.size(), actualChatIds);
 
 
     } finally {
@@ -63,20 +74,24 @@ public class TelegramChatSyncService {
         }
     }
 
-    private void loadAllChats(TdApi.ChatList chatList) throws Exception{
+    private void loadAllChats(TdApi.ChatList chatList) throws Exception {
 
-        while(true){
-
+        int maxBatches = 1000;
+        for (int batch = 0; batch < maxBatches; batch++) {
             boolean hasMore = telegramTdClient
-                    .loadChats(chatList,100)
+                    .loadChats(chatList, 100)
                     .get(30, TimeUnit.SECONDS);
-            if(!hasMore){
-                break;
+            if (!hasMore) {
+                return;
             }
         }
+
+        throw new IllegalStateException(
+                "Telegram chat loading exceeded maximum batches"
+        );
     }
 
-    private int syncChatList(
+    private Set<Long> syncChatList(
             Long accountId,
             TdApi.ChatList chatList,
             boolean archived
@@ -87,6 +102,17 @@ public class TelegramChatSyncService {
         long[] chatIds = telegramTdClient
                 .getChatIds(chatList,100_000)
                 .get(30, TimeUnit.SECONDS);
+
+        if (chatIds.length >= 100_000) {
+            throw new IllegalStateException(
+                    "Telegram chat list reached the configured limit. " +
+                            "Reconciliation aborted."
+
+            );
+
+        }
+
+        Set<Long> actualChatIds = new HashSet<>();
 
         for(long chatId : chatIds){
             TdApi.Chat chat = telegramTdClient
@@ -102,6 +128,7 @@ public class TelegramChatSyncService {
                     archived
 
             );
+            actualChatIds.add(chatId);
         }
 
         log.info("Telegram chat list synchronized: archived={}, count={}",
@@ -109,7 +136,7 @@ public class TelegramChatSyncService {
 
 
 
-        return chatIds.length;
+        return actualChatIds;
     }
 
 }

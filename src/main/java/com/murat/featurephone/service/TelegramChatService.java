@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Set;
+
 @Service
 @RequiredArgsConstructor
 public class TelegramChatService {
@@ -54,6 +56,21 @@ public class TelegramChatService {
 
         return chatRepository.save(chat);
 
+    }
+
+
+    @Transactional
+    public int deactivateMissingChats(Long accountId, Set<Long> actualChatIds) {
+
+        if(actualChatIds.isEmpty()){
+            throw new IllegalStateException(
+                    "Cannot reconcile Telegram chats without an empty chat list"
+            );
+        }
+
+        return chatRepository.deactivateMissingChats(
+                accountId, actualChatIds
+        );
     }
 
 }
