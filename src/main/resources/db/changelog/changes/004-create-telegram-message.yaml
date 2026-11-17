@@ -1,0 +1,69 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-create-telegram-message
+      author: murat
+      changes:
+        - createTable:
+            tableName: telegram_message
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: telegram_chat_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_telegram_message_chat
+                    references: telegram_chat(id)
+
+              - column:
+                  name: telegram_message_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: sender_id
+                  type: BIGINT
+
+              - column:
+                  name: text
+                  type: TEXT
+
+              - column:
+                  name: outgoing
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: sent_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: content_type
+                  type: VARCHAR(50)
+                  defaultValue: TEXT
+                  constraints:
+                    nullable: false
+
+        - addUniqueConstraint:
+            tableName: telegram_message
+            columnNames: telegram_chat_id, telegram_message_id
+            constraintName: uq_telegram_message_chat_message

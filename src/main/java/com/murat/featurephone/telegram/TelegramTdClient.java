@@ -1,20 +1,26 @@
 package com.murat.featurephone.telegram;
 
+import lombok.extern.slf4j.Slf4j;
 import org.drinkless.tdlib.Client;
 import org.drinkless.tdlib.TdApi;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.CompletableFuture;
 
+@Slf4j
 @Component
 public class TelegramTdClient {
 
     private final Client client;
     private final TelegramProperties properties;
+    private final ApplicationEventPublisher eventPublisher;
+    private volatile boolean authorized = false;
 
 
-    public TelegramTdClient(TelegramProperties properties) throws Client.ExecutionException {
+    public TelegramTdClient(TelegramProperties properties, ApplicationEventPublisher eventPublisher) throws Client.ExecutionException {
         this.properties = properties;
+        this.eventPublisher = eventPublisher;
 
         Client.execute(new TdApi.SetLogVerbosityLevel(1));
         this.client = Client.create(
@@ -53,7 +59,11 @@ public class TelegramTdClient {
             }
 
             if (authorizationState instanceof TdApi.AuthorizationStateReady) {
+                authorized = true;
                 System.out.println("Telegram authorization READY");
+                eventPublisher.publishEvent(
+                        new TelegramAuthorizedEvent()
+                );
             }
         }
     }
@@ -124,14 +134,21 @@ public class TelegramTdClient {
         return future;
     }
 
-    public CompletableFuture<long[]> getChatIds(){
+    public CompletableFuture<long[]> getChatIds(
+            TdApi.ChatList chatList,
+            int limit
+    ){
         CompletableFuture<long[]> future = new CompletableFuture<>();
 
         TdApi.GetChats request = new TdApi.GetChats();
 
-        request.chatList = new TdApi.ChatListMain();
-
-        request.limit = 10;
+        request.chatList = chatList;
+        request.limit = limit;
+        log.info(
+                "TDLib GetChats request: list={}, limit={}",
+                request.chatList.getClass().getSimpleName(),
+                request.limit
+        );
 
         client.send(request,result ->{
             if(result instanceof TdApi.Chats chats ){
@@ -157,6 +174,56 @@ public class TelegramTdClient {
         return future;
     }
 
+    public CompletableFuture<long[]> getChatIds() {
+        return getChatIds(new TdApi.ChatListMain(), 10);
+    }
+
+    public CompletableFuture<Boolean> loadChats(
+            TdApi.ChatList chatList,
+            int limit
+    ) {
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        TdApi.LoadChats request = new TdApi.LoadChats();
+        request.chatList = chatList;
+        request.limit = limit;
+        client.send(request, result -> {
+
+            if (result instanceof TdApi.Ok) {
+                future.complete(true);
+                return;
+            }
+
+            if (result instanceof TdApi.Error error) {
+
+                if (error.code == 404) {
+                    future.complete(false);
+                    return;
+                }
+
+                future.completeExceptionally(
+                        new RuntimeException(
+                                "TDLib LoadChats error "
+                                        + error.code + ": "
+                                        + error.message
+                        )
+                );
+                return;
+            }
+            future.completeExceptionally(
+                    new IllegalStateException(
+                            "Unexpected TDLib response: "
+                                    + result.getClass().getSimpleName()
+                    )
+            );
+        });
+
+        return future;
+    }
+
+
+
+
+
     public CompletableFuture<TdApi.Chat> getChat(long chatId){
         CompletableFuture<TdApi.Chat> future = new CompletableFuture<>();
 
@@ -172,6 +239,7 @@ public class TelegramTdClient {
                                 "TDLib error" + error.code + ": " + error.message
                         )
                 );
+                return;
             }
             future.completeExceptionally(
                     new IllegalStateException(
@@ -251,6 +319,7 @@ public class TelegramTdClient {
                                 "TDLib error" + error.code + ": " + error.message
                         )
                 );
+                return;
             }
 
             future.completeExceptionally(
@@ -262,6 +331,10 @@ public class TelegramTdClient {
         });
 
         return future;
+    }
+
+    public boolean isAuthorized() {
+        return authorized;
     }
 
 

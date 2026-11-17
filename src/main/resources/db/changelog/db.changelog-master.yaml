@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/changes/001-create-gateway-user.yaml
+
+  - include:
+      file: db/changelog/changes/002-create-telegram-account.yaml
+
+  - include:
+      file: db/changelog/changes/003-create-telegram-chat.yaml
+
+  - include:
+      file: db/changelog/changes/004-create-telegram-message.yaml
+
+  - include:
+      file: db/changelog/changes/005-add-chat-active-status.yaml
