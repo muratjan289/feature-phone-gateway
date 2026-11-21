@@ -33,6 +33,8 @@ public class TelegramTdClient {
     }
 
 
+
+
     private void handleUpdate(TdApi.Object object) {
         if (object instanceof TdApi.UpdateAuthorizationState update) {
 
